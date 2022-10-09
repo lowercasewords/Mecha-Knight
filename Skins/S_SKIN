@@ -1,0 +1,16 @@
+name = subject5
+flags = SF_NOJUMPSPIN
+realname = Subject5
+hudname = SUBJECT5
+startcolor = 96
+prefcolor = Grey
+supercolor = Black
+ability = CA_FLOAT
+ability2 = CA_NONE
+actionspd = 60
+normalspeed = 40
+thrustfactor = 5
+accelstart = 96
+acceleration = 40
+contspeed = 17
+contangle = 3
