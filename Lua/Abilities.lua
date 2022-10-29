@@ -1,10 +1,15 @@
-freeslot("S_FIRE_MISSILE")
+freeslot("S_MISSLE_JUMP")
 
 --Ability States
-states[S_FIRE_MISSILE] = {
-	sprite = S_PLAY_STND,
+states[S_MISSLE_JUMP] = {
+	sprite = SPR_PLAY,
 	tics = 20,
-	nextstate = S_NULL
+	nextstate = S_PLAY_FALL
+}
+
+
+local abltyEnbl = {
+	MS = true;
 }
 
 
@@ -13,43 +18,43 @@ local function slash(player)
 
 end
 
+
 local function missleSwarm(player) 
-	player.mo.state = S_FIRE_MISSILE;
-	
+	player.mo.state = S_MISSLE_JUMP;
 	local enemyMobj = P_LookForEnemies(player);
-	local missileObj;
-	if(enemyMobj == nil) then
-		missileObj = P_SPMAngle(player.mo, MT_ROCKET, 180);
-	else	
-		missileObj = P_SpawnMissile(player.mo, enemyMobj, MT_ROCKET);
+	local missiles = {}
+	for i = 0, 4 do
+		missiles[i] = P_SPMAngle(player.mo,
+								MT_ROCKET,
+								FixedAngle(i * 90 * FRACUNIT));
 	end
-		print("Missle Fire State: ".. S_FIRE_MISSILE);
-		print("Player state: " .. player.mo.state);
-		print("Player tics: " .. player.mo.tics);
+	-- Vertical Boost
+	P_SetObjectMomZ(player.mo, FixedMul(10*FRACUNIT, player.mo.scale));
+	
+	abltyEnbl.MS = false;
 end
 
-local prevstate = 0;
-local function abilityCall(player)
-	-- Stop if the player is not Subjct5
+
+
+local function abilityReset(player)
+	-- Reset Missle Swarp
+	if(P_IsObjectOnGround(player.mo)) then
+		abltyEnbl.MS = true;
+	end
+end
+
+addHook("AbilitySpecial", function (player)
+	-- If Jump is pressed in airPF_JUMPDOWN
+	if(abltyEnbl.MS) then
+		missleSwarm(player);
+	end
+end)
+
+addHook("PlayerThink", function(player)
+	-- Stop function if the player is not Subjct5
 	if(player.mo.skin ~= "subject5") then
 		print("Wrong skin: " .. player.mo.skin);
 		return
 	end
-	
-	if(player.mo.state ~= prevstate) then
-		prevstate = player.mo.state;
-		print(prevstate);
-	end
-
-	if(player.cmd.buttons == BT_SPIN) then
-		print("spin");
-		if(player.mo.state ~= S_FIRE_MISSILE) then
-			missleSwarm(player);
-		end
-	end
-	if(player.cmd.buttons == BT_JUMP) then
-		print("jump");
-	end
-end
-
-addHook("PlayerThink", abilityCall);
+	abilityReset(player);
+end);
