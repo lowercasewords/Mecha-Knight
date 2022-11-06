@@ -78,7 +78,9 @@ local function tryMissileLock(wMissile)
 end
 
 local function ignoreMissileDmg(target, inflictor, source, damage, damagetype)
-	return not (target.type == MT_PLAYER);
+	local shouldDmg = not (target.type == MT_PLAYER and inflictor.type == MT_S5_MISSILE);
+	print("Should damage? "..tostring(shouldDmg));
+	return shouldDmg;
 end;
 
 local function removeLockOn(mobj)
@@ -134,6 +136,7 @@ addHook("MobjDeath",
 			removeLockOn(missile);
 		end,
 		MT_S5_MISSILE)
+		
 -- Tries to replace a wandering missile with lock-on missile
 addHook("MobjThinker", tryMissileLock, MT_S5_MISSILE);
 -- Ignores specific missile targets
