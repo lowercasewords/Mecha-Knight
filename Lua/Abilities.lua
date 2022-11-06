@@ -42,63 +42,67 @@ local function tryResetMissiles(player)
 	end
 end
 
-
--- Array mobj_t table of missiles created by missile swarm  
-local wanderMissiles = {}
-
-
--- Tries to remove missile mobjs from table if they no longer exist in-game
-local function tryDumpMobjs(tbl)
-	for key in pairs(tbl) do 
-		if(not tbl[key].valid) then
-			tbl[key] = nil;
-		end
+-- Tries to replace a wandering missile with lock-on missile
+local function tryMissileLock(wMissile)
+	if(wMissile.valid and wMissile.state == S_MISSILE_WANDER) then 
+		searchBlockmap("objects", 
+						-- source: wandering missile mobj to be replaced 
+						-- dest: a mobj that was found
+						function (source, dest) 
+							-- if any of it is true, don't lock-on 
+							if(dest.type == MT_S5_MISSILE
+							or source.target == dest
+							or not (dest.lock == nil)
+							or not P_CheckSight(source, dest)
+							or not (dest.flags & MF_ENEMY)) then
+								return;
+							end
+							-- Creates a lock on missile
+							local swndM = P_SpawnMissile(source, dest, MT_S5_MISSILE);
+							if(swndM == nil) then
+								return;
+							end
+							swndM.target = source.target;
+							swndM.lock = dest;
+							dest.lock = swndM;
+							-- Replacing wandering missile for a lock on missile
+							swndM.state = S_MISSILE_LOCK_ON;
+							P_RemoveMobj(source);
+						end,
+						wMissile, 
+						wMissile.x - missMaxDist, 
+						wMissile.x + missMaxDist, 
+						wMissile.y - missMaxDist, 
+						wMissile.y + missMaxDist);
 	end
 end
--- Traverses through existing nonlocked-on missiles to check if they are able lock on
-local function tryMissilesLockOn(player)
-	for key in pairs(wanderMissiles) do
-		if(wanderMissiles[key].valid) then 
-			searchBlockmap("objects", 
-							function (source, dest)
-								-- Make sure missile treats player as the mobj 
-								-- that shot with it, not the missile it was spawned from
-								-- Make sure missile only targets enemies
-								if(dest.flags & MF_ENEMY) then
--- 									print("Found target: " .. dest.type);
-									local swndM = P_SpawnMissile(player.mo, dest, MT_S5_MISSILE);
-									P_TeleportMove(swndM, source.x, source.y, source.z);
-									swndM.state = S_MISSILE_LOCK_ON;
--- 									print("Locking on missile: " .. swndM.type);
-									-- Substituting wandering missile for a lock on missile;
-									source.state = S_NULL;
-									source = nil;
-									
-								else
--- 									print("Wrong dest: " .. dest.type);
--- 									print("Flags: : " .. dest.flags);
-									return;
-								end
-							end,
-							wanderMissiles[key], 
-							wanderMissiles[key].x - missMaxDist, 
-							wanderMissiles[key].x + missMaxDist, 
-							wanderMissiles[key].y - missMaxDist, 
-							wanderMissiles[key].y + missMaxDist);
-		end
-	end
+
+local function ignoreMissileDmg(target, inflictor, source, damage, damagetype)
+	return not (target.type == MT_PLAYER);
+end;
+
+local function removeLockOn(mobj)
+	if(not !mobj.lock) then
+		print("lock was nil?");
+		return;
+	end;
+	local mobj1 = mobj.lock;
+	mobj.lock = nil;
+	if(not !mobj.lock) then
+		print("another lock was nil");
+		return;
+	end;
+	mobj1.lock = nil;
 end
 
 -- Double Jumps and shoots missiles in all directions
 local function missileSwarm(player) 
 	player.mo.state = S_MISSILE_JUMP;
 	for i = 0, 7 do
-		table.insert(wanderMissiles, P_SPMAngle(player.mo,
-										   MT_S5_MISSILE,
-										   player.mo.angle + FixedAngle(i*90*FRACUNIT)));
-		print("spawning a missile + " .. FixedAngle(i*90*FRACUNIT));
+		 P_SPMAngle(player.mo, MT_S5_MISSILE, player.mo.angle + FixedAngle(i*45*FRACUNIT))
 	end
-	-- Vertical Boost
+	
+	-- Vertical Boost for player
 	P_SetObjectMomZ(player.mo, FixedMul(10*FRACUNIT, player.mo.scale));
 
 	abltyEnbl.MS = false;
@@ -115,30 +119,22 @@ end)
 addHook("PlayerThink", function(player)
 	-- Stop function if the player is not Subjct5
 	if(player.mo.skin ~= "subject5") then
-		print("Wrong skin: " .. player.mo.skin);
 		return
 	end
 	tryResetMissiles(player);
-	tryDumpMobjs(wanderMissiles);
-	tryMissilesLockOn(player);
 end);
 
--- Makes missile ignore some objects
-addHook("MobjDamage", -- doesn't work becaues missile doesn't live long enough
-		function(target, inflictor, source, damage, damagetype) 
--- 			print("target: " .. target.type);
--- 			print("inflictor: " .. inflictor.type);
--- 			print("source: " .. source.type);
--- 			print("damage: " .. damage);
--- 			print("damagetype: " .. damagetype);
--- 			print("");
-
--- 			-- Missiles won't damage if these conditions met
--- 			if(inflictor.type == MT_S5_MISSILE
--- 			and target.flags ~= MF_ENEMY) then
--- 				print("Damage should be avoided");
--- 				return true;
--- 			end
-			print(inflictor.type .. " damages " .. target.type);
-		
-		end);
+addHook("MobjCollide", 
+		function(collidingWith, missile)
+			removeLockOn(missile);
+		end,
+		MT_S5_MISSILE);
+addHook("MobjDeath", 
+		function(missile, p1, p2, p3) 
+			removeLockOn(missile);
+		end,
+		MT_S5_MISSILE)
+-- Tries to replace a wandering missile with lock-on missile
+addHook("MobjThinker", tryMissileLock, MT_S5_MISSILE);
+-- Ignores specific missile targets
+addHook("ShouldDamage", ignoreMissileDmg, MS_S5_MISSILE);
