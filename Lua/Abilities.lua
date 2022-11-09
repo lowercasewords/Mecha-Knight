@@ -99,7 +99,7 @@ end;
 -- Double Jumps and shoots missiles in all directions
 local function missileSwarm(player) 
 	player.mo.state = S_MISSILE_JUMP;
-	for i = 0, 7 do
+	for i = 0, 3 do
 		 P_SPMAngle(player.mo, MT_S5_MISSILE, player.mo.angle + FixedAngle(i*45*FRACUNIT))
 	end
 	
