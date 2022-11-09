@@ -78,29 +78,28 @@ local function tryMissileLock(wMissile)
 end
 
 local function ignoreMissileDmg(target, inflictor, source, damage, damagetype)
-	local shouldDmg = not (target.type == MT_PLAYER and inflictor.type == MT_S5_MISSILE);
-	print("Should damage? "..tostring(shouldDmg));
-	return shouldDmg;
+	if(target.type == MT_PLAYER and inflictor.type == MT_S5_MISSILE) then
+		return false
+	end
 end;
 
-local function removeLockOn(mobj)
-	if(not !mobj.lock) then
-		print("lock was nil?");
-		return;
-	end;
-	local mobj1 = mobj.lock;
-	mobj.lock = nil;
-	if(not !mobj.lock) then
-		print("another lock was nil");
-		return;
-	end;
-	mobj1.lock = nil;
-end
+	-- THIS DOESN'T WORK
+	local function removeLockOn(mobj)
+		if(not !mobj.lock) then
+			return;
+		end;
+		local mobj1 = mobj.lock;
+		mobj.lock = nil;
+		if(not !mobj.lock) then
+			return;
+		end;
+		mobj1.lock = nil;
+	end
 
 -- Double Jumps and shoots missiles in all directions
 local function missileSwarm(player) 
 	player.mo.state = S_MISSILE_JUMP;
-	for i = 0, 7 do
+	for i = 0, 3 do
 		 P_SPMAngle(player.mo, MT_S5_MISSILE, player.mo.angle + FixedAngle(i*45*FRACUNIT))
 	end
 	
