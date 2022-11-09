@@ -78,8 +78,9 @@ local function tryMissileLock(wMissile)
 end
 
 local function ignoreMissileDmg(target, inflictor, source, damage, damagetype)
-	local shouldDmg = not (target.type == MT_PLAYER and inflictor.type == MT_S5_MISSILE);
-	return shouldDmg;
+	if(target.type == MT_PLAYER and inflictor.type == MT_S5_MISSILE) then
+		return false
+	end
 end;
 
 	-- THIS DOESN'T WORK
