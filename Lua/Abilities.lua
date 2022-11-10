@@ -100,7 +100,7 @@ end;
 local function missileSwarm(player) 
 	player.mo.state = S_MISSILE_JUMP;
 	for i = 0, 3 do
-		 P_SPMAngle(player.mo, MT_S5_MISSILE, player.mo.angle + FixedAngle(i*45*FRACUNIT))
+		 P_SPMAngle(player.mo, MT_S5_MISSILE, player.mo.angle + FixedAngle(i*90*FRACUNIT))
 	end
 	
 	-- Vertical Boost for player
