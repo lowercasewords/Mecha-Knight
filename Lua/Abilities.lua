@@ -1,27 +1,29 @@
-freeslot("MT_S5_MISSILE", 
-		 "S_MISSILE_WANDER", "S_MISSILE_LOCK_ON", "S_MISSILE_JUMP", 
-	     "SPR2_MJMP");
+freeslot("MT_S5_MISSILE",
+		 "S_MISSILE_WANDER", "S_MISSILE_LOCK_ON", "S_MISSILE_JUMP", "S_SLIDE",
+	     "SPR2_MJMP", "SPR2_SLDE");
 
--- Ability States
+states[S_SLIDE] = {
+	sprite = SPR_PLAY,
+	frame = SPR2_SLDE,
+	nextstate = S_NULL
+}
 states[S_MISSILE_JUMP] = {
 	sprite = SPR_PLAY,
 	frame = SPR2_MJMP,
 	tics = 20,
-	nextstate = S_PLAY_FALL;
+	nextstate = S_PLAY_FALL,
+	action = A_PlaySound,
+	var1 = sfx_rlaunc
 }
-
 states[S_MISSILE_LOCK_ON] = {
 	sprite = SPR_RCKT,
--- 	tics = 100,
 	nextstate = S_NULL
 }
-
 states[S_MISSILE_WANDER] = {
 	sprite = SPR_TORP,
 	tics = 1000,
 	nextstate = S_NULL
 }
-
 mobjinfo[MT_S5_MISSILE] = {
 	spawnstate = S_MISSILE_WANDER,
 	deathstate = MT_TORPEDO,
@@ -31,14 +33,27 @@ mobjinfo[MT_S5_MISSILE] = {
 
 local missMaxDist = 300*FRACUNIT;
 
-local abltyEnbl = {
-	MS = true;
-}
+-- Performs Slide ability on spin if on the ground
+local function slide(player)
+	if(not player.mo.name == "subject5"
+	or not player.shouldSld
+	or not P_IsObjectOnGround(player.mo)) then 
+		return 
+	end
+	
+	if(not player.mo.state == S_SLIDE) then
+		print(player.mo.state)
+		P_InstaThrust(player.mo, player.mo.angle, 20*FRACUNIT)
+	end
+	player.mo.state = S_SLIDE
+
+	player.height = P_GetPlayerSpinHeight(player)
+end
 
 local function tryResetMissiles(player)
 	-- Reset Missile Swarp 
 	if(P_IsObjectOnGround(player.mo)) then
-		abltyEnbl.MS = true;
+		player.shouldMS = true
 	end
 end
 
@@ -83,56 +98,73 @@ local function ignoreMissileDmg(target, inflictor, source, damage, damagetype)
 	end
 end;
 
-	-- THIS DOESN'T WORK
-	local function removeLockOn(mobj)
-		if(not !mobj.lock) then
-			return;
-		end;
-		local mobj1 = mobj.lock;
-		mobj.lock = nil;
-		if(not !mobj.lock) then
-			return;
-		end;
-		mobj1.lock = nil;
-	end
+local function removeLockOn(mobj)
+	if(not !mobj.lock) then
+		print("lock was nil?");
+		return;
+	end;
+	local mobj1 = mobj.lock;
+	mobj.lock = nil;
+	if(not !mobj.lock) then
+		print("another lock was nil");
+		return;
+	end;
+	mobj1.lock = nil;
+end
 
 -- Double Jumps and shoots missiles in all directions
 local function missileSwarm(player) 
+	if(not player.mo.name == "subject5" or
+	not player.shouldMS) then return end
 	player.mo.state = S_MISSILE_JUMP;
 	for i = 0, 3 do
-		 P_SPMAngle(player.mo, MT_S5_MISSILE, player.mo.angle + FixedAngle(i*45*FRACUNIT))
+		 P_SPMAngle(player.mo, MT_S5_MISSILE, player.mo.angle + FixedAngle(i*90*FRACUNIT))
 	end
 	
 	-- Vertical Boost for player
 	P_SetObjectMomZ(player.mo, FixedMul(10*FRACUNIT, player.mo.scale));
 
-	abltyEnbl.MS = false;
+	player.shouldMS = false
 end
 
-addHook("AbilitySpecial", function (player)
-	-- If Jump is pressed in air
-	if(abltyEnbl.MS) then
-		missileSwarm(player);
-	end
-	
-end)
+addHook("AbilitySpecial", missileSwarm);
+
+addHook("SpinSpecial", slide)
 
 addHook("PlayerThink", function(player)
 	-- Stop function if the player is not Subjct5
-	if(player.mo.skin ~= "subject5") then
-		return
+	if(player.mo.skin ~= "subject5") then return	end
+	
+	tryResetMissiles(player)
+	
+	if(player.shouldMS == nil) then
+		player.shouldMS = true
 	end
-	tryResetMissiles(player);
-end);
+	if(player.shouldSld == nil) then
+		
+		player.shouldSld = true
+	end
+	
+	if(not (player.cmd.buttons & BT_SPIN) 
+	and player.mo.state == S_SLIDE) then
+		print("Spin released");
+-- 		player.shouldSld = false
+		player.mo.state = S_PLAY_STND
+	end
+	
+	-- Stop sliding if speed is too small
+	player.shouldSld = not (player.mo.state == S_SLIDE
+						and player.speed < FixedMul(15*FRACUNIT, player.mo.scale))
+end)
 
 addHook("MobjCollide", 
 		function(collidingWith, missile)
-			removeLockOn(missile);
+			removeLockOn(missile)
 		end,
 		MT_S5_MISSILE);
 addHook("MobjDeath", 
 		function(missile, p1, p2, p3) 
-			removeLockOn(missile);
+			removeLockOn(missile)
 		end,
 		MT_S5_MISSILE)
 		
