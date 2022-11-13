@@ -6,6 +6,7 @@ startcolor = 96
 prefcolor = Azure
 supercolor = Black
 ability = CA_NONE
+ability2 = CA2_NONE
 actionspd = 60
 normalspeed = 40
 thrustfactor = 5
