@@ -34,7 +34,6 @@ mobjinfo[MT_S5_MISSILE] = {
 local missMaxDist = 300*FRACUNIT
 local shouldSld = false
 local shouldMs = false
-local slideSpeedCap = 5*FRACUNIT
 
 -- Performs Slide ability on spin if on the ground
 local function slide(player)
@@ -50,13 +49,11 @@ local function slide(player)
 		P_InstaThrust(player.mo, player.drawangle, FixedMul(speed, 25*FRACUNIT))
 	end
 	-- Other stuff
-	
 	player.mo.state = S_SLIDE
--- 	player.speed = $1 - FixedDiv($1, 2)
 	player.mo.friction = FRACUNIT-10000
 	player.height = P_GetPlayerSpinHeight(player)
 	player.charflags = $1|SF_CANBUSTWALLS
-	player.pflags = $1|PF_JUMPED
+-- 	player.pflags = $1|PF_JUMPED
 end
 
 local function tryResetMissiles(player)
@@ -181,6 +178,29 @@ addHook("MobjCollide",
 			end
 		end, 
 		MT_PLAYER)
+		
+addHook("ShouldDamage",
+		function(target, inflictor, source, dmg, damagetype)
+			if(target.valid
+			and target.skin == "subject5"
+			and target.state == S_SLIDE
+			and inflictor.flags & MF_ENEMY) then
+				return false
+			end
+		end,
+		MT_PLAYER)
+
+
+addHook("PlayerCanDamage", 
+		function(player, target)
+			if(player.mo.state == S_SLIDE) then
+				if(target.flags & MF_ENEMY) then
+					P_DamageMobj(target);
+				elseif(target.flags & MF_MONITOR) then
+					P_KillMobj(target)
+				end
+			end
+		end)
 		
 -- Use ability Swarm on Jump key pressed in the air
 addHook("AbilitySpecial", missileSwarm);
