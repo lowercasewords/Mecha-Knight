@@ -3,7 +3,7 @@ freeslot("MT_S5_MISSILE",
 	     "SPR2_MJMP", "SPR2_SLDE");
 
 states[S_SLIDE] = {
-	sprite = SPR_PLAY,
+	sprite = SPR_PLA Y,
 	frame = SPR2_SLDE,
 	nextstate = S_NULL
 }
@@ -37,8 +37,7 @@ local shouldMs = false
 
 -- Performs Slide ability on spin if on the ground
 local function slide(player)
-	if(not player.mo.name == "subject5"
--- 	or shouldSld == false
+	if(not (skins[player.mo.skin].name == "subject5")
 	or not P_IsObjectOnGround(player.mo)) then 
 		return 
 	end
