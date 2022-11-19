@@ -1,12 +1,23 @@
 freeslot("MT_S5_MISSILE",
-		 "S_MISSILE_WANDER", "S_MISSILE_LOCK_ON", "S_MISSILE_JUMP", "S_SLIDE",
+		 "S_L", "S_MISSILE_WANDER", "S_MISSILE_LOCK_ON", "S_MISSILE_JUMP", "S_SLIDE", "S_SLIDE_EXIT",
 	     "SPR2_MJMP", "SPR2_SLDE");
 
 states[S_SLIDE] = {
-	sprite = SPR_PLA Y,
+	sprite = SPR_PLAY,
 	frame = SPR2_SLDE,
-	nextstate = S_NULL
+	tics = -1,
+	nextstate = S_L
 }
+states[S_L] = {
+	sprite = SPR_PLAY,
+	tics = 0,
+-- 	action = A_DO,
+-- 	var1 = nil,
+-- 	var2 = nil
+}
+-- function A_DO(var1, var2)
+-- 	print("DO CALLED")
+-- end
 states[S_MISSILE_JUMP] = {
 	sprite = SPR_PLAY,
 	frame = SPR2_MJMP,
@@ -17,12 +28,10 @@ states[S_MISSILE_JUMP] = {
 }
 states[S_MISSILE_LOCK_ON] = {
 	sprite = SPR_RCKT,
-	nextstate = S_NULL
 }
 states[S_MISSILE_WANDER] = {
 	sprite = SPR_TORP,
 	tics = 1000,
-	nextstate = S_NULL
 }
 mobjinfo[MT_S5_MISSILE] = {
 	spawnstate = S_MISSILE_WANDER,
@@ -34,25 +43,45 @@ mobjinfo[MT_S5_MISSILE] = {
 local missMaxDist = 300*FRACUNIT
 local shouldSld = false
 local shouldMs = false
+local SLIDE_COOL_DOWN = 2*TICRATE
+
+--Should be called just once
+local function undoSlide(player)	
+	print("undo slide")
+-- 	player.height = skins[player.mo.skin].height
+	player.charflags = $&~SF_CANBUSTWALLS
+	player.pflags = $&~PF_SPINNING
+	player.mo.state = S_PLAY_WALK
+end
 
 -- Performs Slide ability on spin if on the ground
 local function slide(player)
 	if(not (skins[player.mo.skin].name == "subject5")
-	or not P_IsObjectOnGround(player.mo)) then 
-		return 
+	or not (P_IsObjectOnGround(player.mo))) then 
+		return
 	end
 	-- Thrusting when sliding once
-	if(not (player.mo.state == S_SLIDE)) then
-		local speed = player.mo.scale
--- 		print(speed)
-		P_InstaThrust(player.mo, player.drawangle, FixedMul(speed, 25*FRACUNIT))
+	// and not (player.speed <= 3*FRACUNIT)
+	if(not (player.mo.state == S_SLIDE) 
+		and not (player.pflags & PF_SPINDOWN)) then
+-- 		print("\nSpeed "..player.speed)
+-- 		print("Fracunit "..4*FRACUNIT)
+-- 		P_InstaThrust(player.mo, player.drawangle, FixedMul(player.speed, 2*FRACUNIT))
+		player.pflags = $|PF_SPINNING
+		player.mo.state = S_SLIDE
+-- 		player.height = P_GetPlayerSpinHeight(player)
+	elseif(player.mo.state == S_SLIDE 
+		   and not (player.pflags & PF_SPINDOWN)) then
+		undoSlide(player)
+-- 		player.height = skins[player.mo.skin].height -- returns the default height value
+-- 		-- Undo enemy damage and wallbreak
+-- 		player.charflags = $ & ~SF_CANBUSTWALLSw
+-- 		player.pflags = $&~PF_SPINNING
 	end
-	-- Other stuff
-	player.mo.state = S_SLIDE
-	player.mo.friction = FRACUNIT-10000
-	player.height = P_GetPlayerSpinHeight(player)
-	player.charflags = $1|SF_CANBUSTWALLS
--- 	player.pflags = $1|PF_JUMPED
+-- 	if(player.speed <= FixedMul(9*FRACUNIT, player.mo.scale)) then
+-- 		P_InstaThrust(player.mo, player.drawangle, 1)
+-- 	end
+-- 	player.charflags = $1|SF_CANBUSTWALLS
 end
 
 local function tryResetMissiles(player)
@@ -105,22 +134,23 @@ end;
 
 local function removeLockOn(mobj)
 	if(not !mobj.lock) then
-		print("lock was nil?");
+		print("lock was nil?")
 		return
 	end
-	local mobj1 = mobj.lock;
-	mobj.lock = nil;
+	local mobj1 = mobj.lock
+	mobj.lock = nil
 	if(not !mobj.lock) then
-		print("another lock was nil");
-		return;
-	end;
-	mobj1.lock = nil;
+		print("another lock was nil")
+		return
+	end
+	mobj1.lock = nil
 end
 
 -- Double Jumps and shoots missiles in all directions
 local function missileSwarm(player) 
 	if(not player.mo.name == "subject5" or
-	shouldMs == false) then return
+	shouldMs == false) then 
+		return false
 	end
 	player.mo.state = S_MISSILE_JUMP
 	for i = 0, 3 do
@@ -131,23 +161,53 @@ local function missileSwarm(player)
 	P_SetObjectMomZ(player.mo, FixedMul(10*FRACUNIT, player.mo.scale));
 
 	shouldMs = false
+	return true
 end
 
+local function changeHeight(player) 
+	if(player.pflags & PF_SPINNING) then
+		player.mo.height = P_GetPlayerSpinHeight(player)
+	elseif(player.pflags & ~PF_SPINNING) then
+-- 		player.mo.height = skins[player.mo.skin].height
+	end
+end
+
+addHook("PlayerCanEnterSpinGaps", 
+	function(player) 
+		if(player.mo.state == S_SLIDE) then
+			return true
+		end
+	end)
 addHook("PlayerThink", function(player)
 	-- Stop function if the player is not Subjct5
-	if(player.mo.skin ~= "subject5") then return	end
+	if(player.mo.skin ~= "subject5") then 
+		return	
+	end
+	if(player.mo.state == S_L)
+		undoSlide(player)
+	end
+-- 	print(player.mo.state)
+-- 	if(player.pflags & ~PF_SPINNING) then
+-- 		print("original height")
+-- 		player.mo.height = skins[player.mo.skin].height
+-- 	end
+	-- Undo Slide ability if slide state is stoped	
+-- 	if(player.mo.state ~= S_SLIDE and player.pflags & PF_SPINDOWN) then
+-- 		undoSlide(player)
+-- 	end
 	
 	tryResetMissiles(player)
+
 	
-	-- Slide Ability button is released
-	if(not (player.cmd.buttons & BT_SPIN) 
-	and player.mo.state == S_SLIDE) then
-		player.height = skins[player.mo.skin].height -- returns the default height value
-		player.mo.state = S_PLAY_STND
-		-- Undo enemy damage and wallbreak 
-		player.charflags = $ & ~SF_CANBUSTWALLS
-		player.pflags = $ & ~PF_JUMPED
-	end
+-- 	-- Slide Ability button is released
+-- 	if(not (player.cmd.buttons & BT_SPIN)
+-- 	and player.mo.state == S_SLIDE) then
+-- 		player.height = skins[player.mo.skin].height -- returns the default height value
+-- 		player.mo.state = S_PLAY_STND
+-- 		-- Undo enemy damage and wallbreak
+-- 		player.charflags = $ & ~SF_CANBUSTWALLS
+-- 		player.pflags = $&~PF_SPINNING
+-- 	end
 	
 	-- Stop sliding if speed is too small
 -- 	shouldSld = not (player.mo.state == S_SLIDE
@@ -158,7 +218,7 @@ addHook("MobjCollide",
 		function(collidingWith, missile)
 			removeLockOn(missile)
 		end,
-		MT_S5_MISSILE);
+		MT_S5_MISSILE)
 
 addHook("MobjDeath", 
 		function(missile, p1, p2, p3) 
@@ -177,29 +237,30 @@ addHook("MobjCollide",
 			end
 		end, 
 		MT_PLAYER)
-		
-addHook("ShouldDamage",
-		function(target, inflictor, source, dmg, damagetype)
-			if(target.valid
-			and target.skin == "subject5"
-			and target.state == S_SLIDE
-			and inflictor.flags & MF_ENEMY) then
-				return false
-			end
-		end,
-		MT_PLAYER)
 
+-- Enemies won't damage player during sliding state on touch
+-- addHook("ShouldDamage",
+-- 		function(target, inflictor, source, dmg, damagetype)
+-- 			if(target.valid
+-- 			and target.skin == "subject5"
+-- 			and target.state == S_SLIDE
+-- 			and inflictor.flags & MF_ENEMY) then
+-- 				return false
+-- 			end
+-- 		end,
+-- 		MT_PLAYER)
 
-addHook("PlayerCanDamage", 
-		function(player, target)
-			if(player.mo.state == S_SLIDE) then
-				if(target.flags & MF_ENEMY) then
-					P_DamageMobj(target);
-				elseif(target.flags & MF_MONITOR) then
-					P_KillMobj(target)
-				end
-			end
-		end)
+-- Damaging monitors and enemies during slide on touch 
+-- addHook("PlayerCanDamage",
+-- 		function(player, target)
+-- 			if(player.mo.state == S_SLIDE) then
+-- 				if(target.flags & MF_ENEMY) then
+-- 					P_DamageMobj(target);
+-- 				elseif(target.flags & MF_MONITOR) then
+-- 					P_KillMobj(target)
+-- 				end
+-- 			end
+-- 		end)
 		
 -- Use ability Swarm on Jump key pressed in the air
 addHook("AbilitySpecial", missileSwarm);
