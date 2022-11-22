@@ -172,12 +172,6 @@ local function changeHeight(player)
 	end
 end
 
-addHook("PlayerCanEnterSpinGaps", 
-	function(player) 
-		if(player.mo.state == S_SLIDE) then
-			return true
-		end
-	end)
 addHook("PlayerThink", function(player)
 	-- Stop function if the player is not Subjct5
 	if(player.mo.skin ~= "subject5") then 
@@ -185,7 +179,7 @@ addHook("PlayerThink", function(player)
 	end
 	if(player.mo.state == S_L)
 		undoSlide(player)
-	end
+	
 -- 	print(player.mo.state)
 -- 	if(player.pflags & ~PF_SPINNING) then
 -- 		print("original height")
