@@ -29,7 +29,7 @@ mobjinfo[MT_S5_MISSILE] = {
 	flags = MF_MISSILE|MF_NOGRAVITY	
 }
 
-local missMaxDist = 300*FRACUNIT
+local MISS_MAX_DIST = 300*FRACUNIT
 local shouldSld = false
 local shouldMs = false
 local SLIDE_COOL_DOWN = 2*TICRATE
@@ -99,10 +99,10 @@ local function tryMissileLock(wMissile)
 							P_RemoveMobj(source);
 						end,
 						wMissile, 
-						wMissile.x - missMaxDist, 
-						wMissile.x + missMaxDist, 
-						wMissile.y - missMaxDist, 
-						wMissile.y + missMaxDist);
+						wMissile.x - MISS_MAX_DIST, 
+						wMissile.x + MISS_MAX_DIST, 
+						wMissile.y - MISS_MAX_DIST, 
+						wMissile.y + MISS_MAX_DIST);
 	end
 end
 
